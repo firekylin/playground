@@ -30,17 +30,16 @@ npm start
 
 本仓库只维护 Playground 的界面、启动编排、开发者工具和资源构建脚本，不维护 Firekylin 的文章、用户、主题、插件或后台业务代码。
 
-`firekylin-source.json` 固定上游仓库和完整提交 SHA。`npm run build` 会：
+`npm run build` 直接从 `firekylin/firekylin` 的 `master` 分支构建：
 
-1. 获取该提交到 `.cache/firekylin`。
+1. 获取 `master` 最新提交到 `.cache/firekylin`。
 2. 使用独立安装的 pnpm 和上游锁文件安装依赖，构建官方后台。
 3. 将上游源码和必要运行依赖转换为浏览器文件树及分包快照。
 
 所有下载源码、安装依赖和快照都被 Git 忽略；Git 仓库不提交 Firekylin 源码副本、`node_modules` 或构建产物。构建脚本仅选择打包内容，不改写 Firekylin 的业务源文件。
 
-当前固定提交包含 [Firekylin PR #993](https://github.com/firekylin/firekylin/pull/993) 的兼容性修复：按需加载 SQLite/sharp，以及正确设置 PostgreSQL 连接池大小。此 PR 已合并，当前直接使用合并后的提交。发布包 2.19.0 尚不包含这些修复，不能直接替换成它。
 
-Playground 的 `runtime/start-playground.cjs` 负责创建临时数据库、调用上游安装器与迁移、初始化体验内容和一次性登录。`runtime/seed-site.cjs` 调用上游文章服务创建固定示例内容；这些是体验编排，不是另一份博客实现。由于目前使用了上游内部模块，升级固定版本时必须运行完整集成检查。
+Playground 的 `runtime/start-playground.cjs` 负责创建临时数据库、调用上游安装器与迁移、初始化体验内容和一次性登录。`runtime/seed-site.cjs` 调用上游文章服务创建固定示例内容；这些是体验编排，不是另一份博客实现。由于目前使用了上游内部模块，每次更新上游代码后都应运行完整集成检查。
 
 ## 检查
 
@@ -74,7 +73,7 @@ GitHub Actions 在提交和 PR 时执行上述流程。
 - Output Directory：`dist`。
 - Node.js：24.x（仅用于构建）。
 
-构建时获取固定版本的 Firekylin，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，不需要 Functions、自建服务或服务器数据库。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
+构建时获取 Firekylin `master` 最新代码，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，不需要 Functions、自建服务或服务器数据库。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
 
 `npm run preview` 仅用于本地预览 `dist/`，不会部署或启动在线服务。Vercel 的构建 Node.js 版本不影响浏览器内 WebContainer 的 Node.js 版本。
 
@@ -88,11 +87,10 @@ scripts/             构建、打包、检查和本地静态预览
 test/               界面、静态资源和真实服务集成检查
 dist/                完整静态部署产物（自动生成，不提交）
 vercel.json          Vercel 构建及响应头设置
-firekylin-source.json 上游仓库与固定提交
 ```
 
 已移除 Blueprint 配置协议、校验器、通用步骤执行器和配置文档。初始化脚本只创建固定演示站点，语言由界面选择传入，不再加载或分享自定义配置。
 
 ## 许可与素材
 
-代码采用 GPL-3.0-only，见 LICENSE。Logo 图形与动画来自 Firekylin 官网，见 THIRD_PARTY_NOTICES.md。第三方依赖保留其各自许可；使用 WebContainer 服务须遵守其服务条款。
+代码采用 GPL-3.0-only，见 LICENSE。Logo 图形与动画来自 Firekylin 官网。第三方依赖保留其各自许可；使用 WebContainer 服务须遵守其服务条款。

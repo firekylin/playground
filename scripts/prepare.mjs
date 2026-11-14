@@ -58,4 +58,4 @@ for (const name of ['start-playground.cjs', 'seed-site.cjs', 'db-tool.cjs']) {
     tree[name] = {file: {contents: await readFile(path.join(runtimeRoot, name), 'utf8')}};
 }
 await writeFile(path.join(outputRoot, 'firekylin-files.json'), JSON.stringify(tree));
-console.log('Packaged pinned Firekylin source and built admin assets');
+console.log('Packaged Firekylin source and built admin assets');
