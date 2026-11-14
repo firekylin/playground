@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Firekylin Playground</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/vendor/xterm.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Firekylin Playground 首页"><img src="/logo.svg" alt="Firekylin" width="34" height="34"><strong>Playground</strong></a>
+    <nav class="site-nav" aria-label="站点视图">
+      <button id="front" disabled>网站</button>
+      <button id="admin" disabled>后台</button>
+      <a id="preview" target="_blank" rel="noopener noreferrer" hidden aria-label="在新窗口打开站点">↗</a>
+    </nav>
+    <div class="tools">
+      <select id="language" aria-label="界面语言"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select>
+      <button id="share">分享</button>
+      <button id="run" class="primary" title="重新运行会清空当前体验数据">启动</button>
+    </div>
+  </header>
+  <main aria-label="站点预览">
+    <div id="empty">
+      <div class="launch-card">
+        <div class="launch-emblem" aria-hidden="true"><div class="orbit"></div><div class="orbit orbit-inner"></div><img src="/logo-animated.svg" alt="" width="250" height="262"></div>
+        <div class="launch-id">FIREKYLIN PLAYGROUND</div>
+        <div id="launch-idle"><h1>让想法，即刻发生。</h1><p>无需安装，在浏览器里开启你的创作空间。</p><button id="launch" class="launch-control" aria-label="启动 Firekylin" title="启动 Firekylin">
+          <svg viewBox="0 0 32 32" width="30" height="30" fill="none" aria-hidden="true" focusable="false">
+            <path d="M11 7.5 25 16 11 24.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        <span id="launch-label">启动</span>
+        </button></div>
+        <div id="launch-loading" hidden aria-live="polite">
+          <h1 id="loading-title">正在准备你的创作空间</h1>
+          <p id="loading-detail">正在启动浏览器内 Node.js…</p>
+          <div class="loading-track"><div id="loading-fill"></div></div>
+          <div class="loading-meta"><span id="loading-percent">0%</span><span>首次启动可能需要一些时间</span></div>
+          <ol class="loading-stages"><li data-stage="0">启动环境</li><li data-stage="1">加载资源</li><li data-stage="2">初始化站点</li><li data-stage="3">打开预览</li></ol>
+        </div>
+      </div>
+    </div>
+    <iframe title="Firekylin 站点预览" hidden></iframe>
+  </main>
+  <footer class="bottombar">
+    <div class="runtime-status"><span class="status-dot" aria-hidden="true"></span><span id="status" role="status">准备就绪</span></div>
+    <div class="footer-tools">
+      <button data-tool="database">Database</button>
+      <button data-tool="terminal">Terminal</button>
+      <button data-tool="files">Files</button>
+      <button data-panel="logs-panel">日志</button>
+      <button data-panel="help-panel">帮助</button>
+    </div>
+    <progress id="progress" value="0" max="100" aria-label="启动进度"></progress>
+  </footer>
+  <div id="notice" role="status" hidden></div>
+
+  <section id="devtools" hidden aria-label="开发者工具">
+    <div class="dev-header"><nav aria-label="开发者工具切换"><button data-tool="database">Database</button><button data-tool="terminal">Terminal</button><button data-tool="files">Files</button></nav><span>当前运行环境</span><button id="close-devtools" aria-label="关闭开发者工具">×</button></div>
+    <p id="tool-status" role="status">启动站点后即可使用开发者工具。</p>
+    <div id="tool-database" class="tool-body" hidden>
+      <div class="actions db-toolbar">
+        <select id="db-table" aria-label="数据表"></select>
+        <button id="db-refresh">刷新</button>
+        <button id="db-insert" class="primary" disabled>新增记录</button>
+        <form id="db-filter" class="actions"><input id="db-search" aria-label="搜索表中数据" placeholder="搜索表中数据"><button>筛选</button></form>
+        <button id="db-prev">上一页</button><button id="db-next">下一页</button><span id="db-page"></span>
+      </div>
+      <div id="db-grid" class="table-scroll"></div>
+      <details class="db-advanced"><summary>SQL 高级操作</summary>
+        <label for="db-sql">SQL 查询与编辑</label><textarea id="db-sql" spellcheck="false">SELECT * FROM fk_post LIMIT 20;</textarea>
+        <button id="db-execute" class="primary">执行 SQL</button><pre id="db-result"></pre>
+      </details>
+    </div>
+    <div id="tool-terminal" class="tool-body" hidden><div class="actions"><button id="terminal-restart">重启终端</button><button id="terminal-clear">清屏</button></div><div id="terminal"></div></div>
+    <div id="tool-files" class="tool-body" hidden>
+      <form id="file-path-form" class="actions"><button id="files-site" type="button">站点目录</button><button id="files-up" type="button">上级</button><input id="file-path" value="playground-site" aria-label="目录路径"><button type="submit">打开目录</button><button id="files-refresh" type="button">刷新</button></form>
+      <div class="actions"><input id="file-new-name" placeholder="新文件或文件夹名称" aria-label="新文件名称"><button id="file-create">新建文件</button><button id="folder-create">新建文件夹</button><button id="file-upload">上传文件</button><input id="file-upload-input" type="file" multiple hidden></div>
+      <div class="file-columns"><ul id="file-list"></ul><div><p id="file-selected">选择文件进行编辑</p><textarea id="file-content" spellcheck="false" aria-label="文件内容" disabled></textarea><div class="actions"><button id="file-save" disabled>保存文件</button><button id="file-download" disabled>下载文件</button></div></div></div>
+    </div>
+  </section>
+  <dialog id="row-panel" aria-labelledby="row-title"><div class="panel-header"><h2 id="row-title">编辑数据库记录</h2><button data-close aria-label="关闭记录编辑">×</button></div><div class="panel-body"><p>逐个填写字段；默认值和 NULL 可分别选择。修改立即应用到当前数据库。</p><div id="row-fields"></div><p id="row-status" role="status"></p></div><div class="panel-footer"><button id="row-save" class="primary">保存记录</button></div></dialog>
+  <dialog id="logs-panel" class="logs" aria-labelledby="logs-title">
+    <div class="panel-header"><h2 id="logs-title">运行日志</h2><button data-close aria-label="关闭日志">×</button></div>
+    <div class="panel-body"><ol id="steps" aria-label="初始化步骤"></ol><pre aria-label="运行日志"></pre></div>
+  </dialog>
+  <dialog id="help-panel" aria-labelledby="help-title">
+    <div class="panel-header"><h2 id="help-title">关于本次体验</h2><button data-close aria-label="关闭帮助">×</button></div>
+    <div class="panel-body help">
+      <p>Firekylin 和数据库都在你的浏览器中运行。请保持此页面打开。</p>
+      <p>默认自动登录。需要手动登录时，账号为 <code>playground</code>，密码为 <code>playground-demo</code>。</p>
+      <p>刷新或重新运行会清空本次体验中的数据和文件。</p>
+    </div>
+  </dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

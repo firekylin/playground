@@ -1,0 +1,8 @@
+node_modules/
+.cache/
+firekylin-files.json
+dependency-links.json
+snapshots/
+snapshots.json
+*.log
+.DS_Store
