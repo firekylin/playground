@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { projectRoot, sourceRoot } from './source.mjs';
+import { projectRoot, sourceRoot, outputRoot } from './source.mjs';
 
-const source = JSON.parse(await fs.readFile(new URL('./firekylin-source.json', import.meta.url)));
+const source = JSON.parse(await fs.readFile(new URL('../firekylin-source.json', import.meta.url)));
 if (!/^[a-f0-9]{40}$/.test(source.commit)) throw new Error('Pin Firekylin to a full commit SHA');
 function run(command, args, cwd = projectRoot) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit' });
@@ -18,6 +18,9 @@ run('git', ['checkout', '--detach', source.commit], sourceRoot);
 const pnpm = path.join(projectRoot, 'node_modules/pnpm/bin/pnpm.mjs');
 run(process.execPath, [pnpm, 'install', '--frozen-lockfile', '--ignore-scripts'], sourceRoot);
 run(process.execPath, [pnpm, 'exec', 'vite', 'build'], sourceRoot);
-run(process.execPath, ['prepare.mjs']);
-run(process.execPath, ['prepare-dependencies.mjs']);
-console.log('Playground is ready. Run npm start.');
+await fs.rm(outputRoot, {recursive: true, force: true});
+await fs.mkdir(outputRoot, {recursive: true});
+run(process.execPath, ['scripts/prepare.mjs']);
+run(process.execPath, ['scripts/prepare-dependencies.mjs']);
+run(process.execPath, ['scripts/package-static.mjs']);
+console.log('Static deployment ready in dist/. Run npm run preview to inspect locally.');

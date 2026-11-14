@@ -4,12 +4,8 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 
 async function main() {
-    const { parseBlueprint, presets } = await import('./blueprint.mjs');
-    const blueprint = parseBlueprint(
-        fs.existsSync(path.join(__dirname, 'blueprint.json'))
-            ? fs.readFileSync(path.join(__dirname, 'blueprint.json'), 'utf8')
-            : JSON.stringify(presets.writing)
-    );
+    const locale = ['zh-CN', 'en-US'].includes(process.env.PLAYGROUND_LOCALE)
+        ? process.env.PLAYGROUND_LOCALE : 'zh-CN';
     const port = Number(process.env.PLAYGROUND_PORT || 8360);
     const report = (event) => console.log('PLAYGROUND_EVENT ' + JSON.stringify(event));
     report({ phase: 'initializing' });
@@ -60,7 +56,7 @@ async function main() {
     process.env.FIREKYLIN_PROJECT_PATH = project;
     const { initialize } = require('./lib/installer');
     await initialize(project, config, {
-        title: blueprint.title,
+        title: '我的 Firekylin 博客',
         siteUrl: `http://localhost:${port}`,
         username: 'playground',
         password: 'playground-demo',
@@ -74,20 +70,21 @@ async function main() {
         APP_PATH: path.join(__dirname, 'src'),
         RUNTIME_PATH: path.join(project, 'data/runtime'),
         proxy: true,
-        env: blueprint.runtime.mode
+        env: 'production'
     });
     new Loader(app.options).loadAll('worker');
     await think.beforeStartServer();
     const localeOptions = think.model('options');
     const localeRow = await localeOptions.where({ key: 'locale' }).find();
-    if (localeRow.key) await localeOptions.where({ key: 'locale' }).update({ value: blueprint.locale });
-    else await localeOptions.add({ key: 'locale', value: blueprint.locale });
-    const actor = await require('./blueprint-runner.cjs')(blueprint, report);
-    let loginToken = blueprint.login ? crypto.randomBytes(32).toString('hex') : null;
+    if (localeRow.key) await localeOptions.where({ key: 'locale' }).update({ value: locale });
+    else await localeOptions.add({ key: 'locale', value: locale });
+    report({phase: 'seeding'});
+    const actor = await require('./seed-site.cjs')();
+    let loginToken = crypto.randomBytes(32).toString('hex');
     fs.writeFileSync(
         path.join(__dirname, 'launch.json'),
         JSON.stringify({
-            landingPage: blueprint.landingPage,
+            landingPage: '/admin',
             loginToken
         })
     );
@@ -116,7 +113,7 @@ async function main() {
                     : '; SameSite=Lax';
                 res.writeHead(303, {
                     'Set-Cookie': `thinkjs=${token}; Path=/; HttpOnly${attributes}`,
-                    Location: blueprint.landingPage,
+                    Location: '/admin',
                     'Cache-Control': 'no-store',
                     'Referrer-Policy': 'no-referrer'
                 }).end();

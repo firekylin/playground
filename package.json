@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node serve.mjs",
-    "build": "node build.mjs",
-    "test": "node --test test/blueprint.test.mjs test/ui.test.mjs",
+    "start": "npm run preview",
+    "preview": "node scripts/preview.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/ui.test.mjs",
+    "test:static": "node --test test/static.test.mjs",
     "test:integration": "node --test test/integration.test.mjs",
-    "check": "node check.mjs"
+    "check": "node scripts/check.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",
@@ -23,7 +25,7 @@
   "description": "Run a temporary Firekylin site entirely in your browser.",
   "license": "GPL-3.0-only",
   "engines": {
-    "node": "^24.15.0 || >=26.0.0"
+    "node": "24.x"
   },
   "repository": {
     "type": "git",

@@ -7,11 +7,10 @@ import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
-import { presets } from '../blueprint.mjs';
 
 const require = createRequire(new URL('../package.json', import.meta.url));
 const { decode } = require('@msgpack/msgpack');
-const here = new URL('../', import.meta.url);
+const here = new URL('../dist/', import.meta.url);
 async function writeTree(tree, directory, compact = false) {
     await fs.mkdir(directory, { recursive: true });
     for (const [name, entry] of Object.entries(tree)) {
@@ -26,8 +25,8 @@ async function writeTree(tree, directory, compact = false) {
     }
 }
 
-test('real Firekylin applies Blueprint and consumes a one-time login link', { timeout: 180000 }, async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'firekylin-blueprint-test-'));
+test('real Firekylin seeds a demo site and consumes a one-time login link', { timeout: 180000 }, async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'firekylin-playground-test-'));
     let child;
     try {
         await writeTree(JSON.parse(await fs.readFile(new URL('firekylin-files.json', here))), dir);
@@ -37,16 +36,6 @@ test('real Firekylin applies Blueprint and consumes a one-time login link', { ti
             await writeTree(data.d, path.join(dir, '.store', name), true);
         }
         await writeTree(JSON.parse(await fs.readFile(new URL('dependency-links.json', here))), dir);
-        const blueprint = structuredClone(presets.showcase);
-        blueprint.steps.push(presets.writing.steps[1]);
-        blueprint.locale = 'en-US';
-        blueprint.runtime = {
-            mode: 'development',
-            heapMB: 512,
-            traceWarnings: true,
-            env: { EXAMPLE_VALUE: 'demo' }
-        };
-        await fs.writeFile(path.join(dir, 'blueprint.json'), JSON.stringify(blueprint));
         const reservation = net.createServer();
         reservation.listen(0, '127.0.0.1');
         await once(reservation, 'listening');
@@ -54,7 +43,7 @@ test('real Firekylin applies Blueprint and consumes a one-time login link', { ti
         await new Promise((resolve) => reservation.close(resolve));
         child = spawn(process.execPath, ['start-playground.cjs'], {
             cwd: dir,
-            env: { ...process.env, PLAYGROUND_PORT: String(port) },
+            env: { ...process.env, PLAYGROUND_PORT: String(port), PLAYGROUND_LOCALE: 'en-US' },
             stdio: ['ignore', 'pipe', 'pipe']
         });
         let logs = '';
@@ -79,7 +68,7 @@ test('real Firekylin applies Blueprint and consumes a one-time login link', { ti
         const front = await fetch(base);
         assert.equal(front.status, 200);
         const html = await front.text();
-        assert.match(html, /日常的片刻/);
+        assert.match(html, /我的 Firekylin 博客/);
         assert.match(html, /把想法写下来/);
         assert.doesNotMatch(html, /从这里开始写作/);
         const article = await fetch(base + '/post/write-it-down.html');
@@ -89,7 +78,7 @@ test('real Firekylin applies Blueprint and consumes a one-time login link', { ti
         await fs.writeFile(path.join(dir, 'preview-url'), 'https://preview.example.invalid');
         const login = await fetch(loginUrl, { redirect: 'manual' });
         assert.equal(login.status, 303);
-        assert.equal(login.headers.get('location'), '/');
+        assert.equal(login.headers.get('location'), '/admin');
         assert.match(login.headers.get('set-cookie'), /HttpOnly; SameSite=None; Secure; Partitioned/);
         const cookie = login.headers
             .getSetCookie()

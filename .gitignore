@@ -6,3 +6,5 @@ snapshots/
 snapshots.json
 *.log
 .DS_Store
+dist/
+.vercel/

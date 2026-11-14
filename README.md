@@ -4,7 +4,7 @@
 
 ## 开始使用
 
-需要 Node.js 24.15+ LTS 或 26+、npm、Git，以及首次构建时的网络连接：
+需要 Node.js 24.15+（24.x）、npm、Git，以及首次构建时的网络连接：
 
 ```sh
 npm ci --ignore-scripts
@@ -38,9 +38,9 @@ npm start
 
 所有下载源码、安装依赖和快照都被 Git 忽略；Git 仓库不提交 Firekylin 源码副本、`node_modules` 或构建产物。构建脚本仅选择打包内容，不改写 Firekylin 的业务源文件。
 
-当前固定提交包含 [Firekylin PR #993](https://github.com/firekylin/firekylin/pull/993) 的兼容性修复：按需加载 SQLite/sharp，以及正确设置 PostgreSQL 连接池大小。此 PR 尚未合并；合并后可更新固定提交。发布包 2.19.0 尚不包含这些修复，不能直接替换成它。
+当前固定提交包含 [Firekylin PR #993](https://github.com/firekylin/firekylin/pull/993) 的兼容性修复：按需加载 SQLite/sharp，以及正确设置 PostgreSQL 连接池大小。此 PR 已合并，当前直接使用合并后的提交。发布包 2.19.0 尚不包含这些修复，不能直接替换成它。
 
-Playground 的 `start-playground.cjs` 负责创建临时数据库、调用上游安装器与迁移、初始化体验内容和一次性登录。`blueprint-runner.cjs` 调用上游文章服务；这些是体验编排，不是另一份博客实现。由于目前使用了上游内部模块，升级固定版本时必须运行完整集成检查。
+Playground 的 `runtime/start-playground.cjs` 负责创建临时数据库、调用上游安装器与迁移、初始化体验内容和一次性登录。`runtime/seed-site.cjs` 调用上游文章服务创建固定示例内容；这些是体验编排，不是另一份博客实现。由于目前使用了上游内部模块，升级固定版本时必须运行完整集成检查。
 
 ## 检查
 
@@ -48,6 +48,7 @@ Playground 的 `start-playground.cjs` 负责创建临时数据库、调用上游
 npm run check
 npm test
 npm run build
+npm run test:static
 npm run test:integration
 ```
 
@@ -63,14 +64,34 @@ GitHub Actions 在提交和 PR 时执行上述流程。
 - 站点已经运行时再次执行 `firekylin` 会冲突，不是无损重启命令；新插件配置生效仍需重新加载应用。
 - 目前快照较大；本项目是功能原型，未提供运行数据持久化或完整本地开发环境。
 
+## 部署到 Vercel
+
+在 Vercel 导入此 GitHub 仓库，使用仓库根目录作为 Root Directory。项目已通过 `vercel.json` 指定：
+
+- Framework Preset：Other。
+- Install Command：`npm ci --ignore-scripts`。
+- Build Command：`npm run build`。
+- Output Directory：`dist`。
+- Node.js：24.x（仅用于构建）。
+
+构建时获取固定版本的 Firekylin，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，不需要 Functions、自建服务或服务器数据库。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
+
+`npm run preview` 仅用于本地预览 `dist/`，不会部署或启动在线服务。Vercel 的构建 Node.js 版本不影响浏览器内 WebContainer 的 Node.js 版本。
+
 ## 目录
 
-- `index.html`、`style.css`、`app.js`、`i18n.mjs`：Playground 界面。
-- `devtools.mjs`、`db-tool.cjs`：开发者工具及数据库桥接。
-- `start-playground.cjs`、`blueprint*.{mjs,cjs}`：临时站点初始化。
-- `build.mjs`、`prepare*.mjs`、`source.mjs`：独立资源构建。
-- `serve.mjs`：本地静态服务器。
-- `test/`：配置、界面状态和真实服务集成检查。
+```text
+src/                 Playground 界面和开发者工具
+public/              Logo 等静态素材
+runtime/             浏览器内的启动、固定示例初始化、数据库桥接
+scripts/             构建、打包、检查和本地静态预览
+test/               界面、静态资源和真实服务集成检查
+dist/                完整静态部署产物（自动生成，不提交）
+vercel.json          Vercel 构建及响应头设置
+firekylin-source.json 上游仓库与固定提交
+```
+
+已移除 Blueprint 配置协议、校验器、通用步骤执行器和配置文档。初始化脚本只创建固定演示站点，语言由界面选择传入，不再加载或分享自定义配置。
 
 ## 许可与素材
 

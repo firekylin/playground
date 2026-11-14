@@ -1,11 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { sourceRoot as root } from './source.mjs';
-import { fileURLToPath } from 'node:url';
+import { sourceRoot as root, projectRoot, outputRoot } from './source.mjs';
 import { snapshot } from '@webcontainer/snapshot';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'firekylin-dependencies-'));
 const installed = new Map();
 function resolvePackage(name, from) {
@@ -63,10 +61,10 @@ function install(source) {
   }
   return destination;
 }
-const tree = JSON.parse(fs.readFileSync(path.join(here, 'firekylin-files.json')));
+const tree = JSON.parse(fs.readFileSync(path.join(outputRoot, 'firekylin-files.json')));
 const pkg = JSON.parse(tree['package.json'].file.contents);
 for (const name of Object.keys(pkg.dependencies)) {
-  link(name, resolvePackage(name, name.startsWith('@electric-sql/') ? here : root), stage);
+  link(name, resolvePackage(name, name.startsWith('@electric-sql/') ? projectRoot : root), stage);
 }
 const links = {};
 function collectLinks(directory, tree) {
@@ -83,14 +81,14 @@ function collectLinks(directory, tree) {
   }
 }
 collectLinks(stage, links);
-fs.writeFileSync(path.join(here, 'dependency-links.json'), JSON.stringify(links));
-const snapshotDir = path.join(here, 'snapshots');
+fs.writeFileSync(path.join(outputRoot, 'dependency-links.json'), JSON.stringify(links));
+const snapshotDir = path.join(outputRoot, 'snapshots');
 fs.mkdirSync(snapshotDir, { recursive: true });
 const manifest = [];
 for (const name of fs.readdirSync(path.join(stage, '.store'))) {
   fs.writeFileSync(path.join(snapshotDir, name + '.bin'), await snapshot(path.join(stage, '.store', name)));
   manifest.push(name);
 }
-fs.writeFileSync(path.join(here, 'snapshots.json'), JSON.stringify(manifest));
+fs.writeFileSync(path.join(outputRoot, 'snapshots.json'), JSON.stringify(manifest));
 console.log(`Prepared ${installed.size} installed packages`);
 fs.rmSync(stage, { recursive: true, force: true });

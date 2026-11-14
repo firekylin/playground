@@ -1,8 +1,6 @@
 import { t, language, translatePage } from './i18n.mjs';
 // Native browser modules require explicit extensions.
 import { WebContainer } from './sdk/index.js'; // eslint-disable-line import/extensions
-import { parseBlueprint, presets } from './blueprint.mjs';
-import { decodeConfiguration } from './library.mjs';
 import { setupDevtools } from './devtools.mjs';
 
 const $ = (selector) => document.querySelector(selector);
@@ -16,9 +14,7 @@ let previewUrl;
 let pendingLog = '';
 let startupTimer;
 let previewTimer;
-let activeBlueprint;
 let noticeTimer;
-let configuration = parseBlueprint(JSON.stringify(presets.writing));
 let runtimeReady = false;
 const devtools = setupDevtools(() => {
     if (!container || !runtimeReady) throw new Error(t('请先启动当前 Playground，等待站点就绪。'));
@@ -44,21 +40,11 @@ function message(text) {
         }, 6000);
     }
 }
-function stepLabel(step) {
-    return {
-        setSiteOptions: t('设置站点信息'),
-        createPost: t('创建文章：') + (step.title || ''),
-        activateTheme: t('启用默认主题')
-    }[step.step];
-}
 function event(value) {
     if (value.phase === 'initializing') status.textContent = t('正在初始化 Firekylin 和数据库…');
-    if (value.phase === 'step') {
-        status.textContent = `${value.index + 1}/${value.total} · ${stepLabel(activeBlueprint.steps[value.index])}`;
-        progress.value = 85 + (value.index / Math.max(value.total, 1)) * 12;
-    }
-    if (value.phase === 'step-complete') {
-        $('#steps').children[value.index].textContent = '✓ ' + stepLabel(activeBlueprint.steps[value.index]);
+    if (value.phase === 'seeding') {
+        status.textContent = t('正在初始化站点…');
+        progress.value = 90;
     }
     if (value.phase === 'ready') {
         clearTimeout(startupTimer);
@@ -144,7 +130,6 @@ function navigate(path) {
 async function start(event) {
     if (button.disabled) return;
     if (event?.type === 'click') playLaunchSound();
-    const blueprint = { ...configuration, locale: language() };
     if (attempted) {
         sessionStorage.setItem('firekylin-simple-autostart', '1');
         container?.teardown();
@@ -154,17 +139,9 @@ async function start(event) {
     attempted = true;
     setLoading(true);
     $('#language').disabled = true;
-    activeBlueprint = blueprint;
     button.disabled = true;
     button.textContent = t('启动中…');
     output.textContent = '';
-    $('#steps').replaceChildren(
-        ...blueprint.steps.map((step) => {
-            const item = document.createElement('li');
-            item.textContent = stepLabel(step);
-            return item;
-        })
-    );
     try {
         if (!crossOriginIsolated) {
             throw new Error(t('运行环境需要跨源隔离，请通过 localhost 或支持此能力的 HTTPS 入口打开。'));
@@ -185,7 +162,6 @@ async function start(event) {
         }
         hydrate(files);
         await container.mount(files);
-        await container.fs.writeFile('blueprint.json', JSON.stringify(blueprint));
         container.on('server-ready', async (port, url) => {
             if (port !== 8360) return;
             try {
@@ -253,11 +229,8 @@ async function start(event) {
         await versionProcess.exit;
         await versionOutput;
         log('Node.js ' + nodeVersion.trim() + '\n');
-        const args = ['--max-old-space-size=' + blueprint.runtime.heapMB];
-        if (blueprint.runtime.traceWarnings) args.push('--trace-warnings');
-        args.push('start-playground.cjs');
-        const process = await container.spawn('node', args, {
-            env: { ...blueprint.runtime.env, NODE_ENV: blueprint.runtime.mode }
+        const process = await container.spawn('node', ['--max-old-space-size=512', 'start-playground.cjs'], {
+            env: {NODE_ENV: 'production', PLAYGROUND_LOCALE: language()}
         });
         startupTimer = setTimeout(() => {
             log(t('启动超过 180 秒，请查看日志并重新运行。\n'));
@@ -293,6 +266,7 @@ $('#admin').addEventListener('click', () => navigate('/admin'));
 $('#share').addEventListener('click', async () => {
     try {
         const url = new URL(location.href);
+        url.hash = '';
         url.searchParams.set('lang', language());
         await navigator.clipboard.writeText(url.href);
         message(t('分享链接已复制。对方打开后可启动自己的体验站点。'));
@@ -349,7 +323,6 @@ $('#language').addEventListener('change', async (event) => {
     try {
         if (runtimeReady) await devtools.setLocale(next);
         translatePage(next);
-        configuration.locale = next;
         try {
             localStorage.setItem('firekylin.playground.language', next);
         } catch {
@@ -374,15 +347,6 @@ $('#language').addEventListener('change', async (event) => {
         event.target.disabled = false;
     }
 });
-try {
-    const sharedHash = /^#(?:config|blueprint)=(.*)$/.exec(location.hash);
-    if (sharedHash) {
-        configuration = decodeConfiguration(decodeURIComponent(sharedHash[1])).configuration;
-    }
-} catch (error) {
-    message(t('分享链接无效，已使用默认站点：') + error.message, true);
-    history.replaceState(null, '', location.pathname + location.search);
-}
 try {
     const restart = sessionStorage.getItem('firekylin-simple-autostart');
     sessionStorage.removeItem('firekylin-simple-autostart');

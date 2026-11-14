@@ -2,12 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
-import { parseBlueprint, presets } from '../blueprint.mjs';
-import { decodeConfiguration } from '../library.mjs';
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
 test('central launch, bilingual UI, loading recovery and runtime locale synchronization', async () => {
-    const dom = new JSDOM(await readFile(new URL('../index.html', import.meta.url), 'utf8'), {
+    const dom = new JSDOM(await readFile(new URL('../src/index.html', import.meta.url), 'utf8'), {
         url: 'http://localhost:4178/?lang=en-US',
         runScripts: 'outside-only'
     });
@@ -16,7 +14,7 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
     let copied;
     let currentLocale;
     let ready;
-    let writtenConfiguration;
+    let runtimeLocale;
     let rejectBoot;
     w.HTMLDialogElement.prototype.showModal = function () {
         this.open = true;
@@ -24,12 +22,12 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
     w.HTMLDialogElement.prototype.close = function () {
         this.open = false;
     };
-    const source = await readFile(new URL('../i18n.mjs', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../src/i18n.mjs', import.meta.url), 'utf8');
     w.eval(source.replace(/export /g, '') + '\nwindow.i18n = {t, language, translatePage};');
     const runtime = {
         fs: {
             writeFile: async (file, value) => {
-                if (file === 'blueprint.json') writtenConfiguration = JSON.parse(value);
+                assert.notEqual(file, 'blueprint.json');
             },
             readFile: async () => JSON.stringify({ landingPage: '/admin' }),
             mkdir: async () => {}
@@ -38,7 +36,8 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
         on: (event, callback) => {
             ready = callback;
         },
-        spawn: async (command, args) => {
+        spawn: async (command, args, options) => {
+                if (options?.env) runtimeLocale = options.env.PLAYGROUND_LOCALE;
             if (args[0] === '--version')
                 return {
                     output: new ReadableStream({
@@ -56,9 +55,6 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
     };
     Object.assign(w, {
         ...w.i18n,
-        parseBlueprint,
-        presets,
-        decodeConfiguration,
         setupDevtools: () => ({
             ready() {},
             async setLocale(locale) {
@@ -82,7 +78,7 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
             }
         }
     });
-    const app = (await readFile(new URL('../app.js', import.meta.url), 'utf8')).replace(
+    const app = (await readFile(new URL('../src/app.js', import.meta.url), 'utf8')).replace(
         /^import .*;.*$/gm,
         ''
     );
@@ -115,7 +111,7 @@ test('central launch, bilingual UI, loading recovery and runtime locale synchron
         $('#launch').click();
         await tick();
         await tick();
-        assert.equal(writtenConfiguration.locale, 'en-US');
+        assert.equal(runtimeLocale, 'en-US');
         assert.equal($('#launch-loading').hidden, false);
         $('iframe').dispatchEvent(new w.Event('load'));
         assert.equal($('#empty').hidden, true);

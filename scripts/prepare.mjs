@@ -1,6 +1,6 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { sourceRoot as root } from './source.mjs';
+import { sourceRoot as root, outputRoot, runtimeRoot } from './source.mjs';
 
 const tree = {};
 async function add(relative) {
@@ -54,11 +54,8 @@ delete pkg.devDependencies;
 delete pkg.scripts;
 delete pkg.packageManager;
 tree['package.json'].file.contents = JSON.stringify(pkg, null, 2);
-tree['start-playground.cjs'] = {
-  file: { contents: await readFile(new URL('start-playground.cjs', import.meta.url), 'utf8') }
-};
-for (const name of ['blueprint.mjs', 'blueprint-runner.cjs', 'db-tool.cjs']) {
-  tree[name] = { file: { contents: await readFile(new URL(name, import.meta.url), 'utf8') } };
+for (const name of ['start-playground.cjs', 'seed-site.cjs', 'db-tool.cjs']) {
+    tree[name] = {file: {contents: await readFile(path.join(runtimeRoot, name), 'utf8')}};
 }
-await writeFile(new URL('firekylin-files.json', import.meta.url), JSON.stringify(tree));
+await writeFile(path.join(outputRoot, 'firekylin-files.json'), JSON.stringify(tree));
 console.log('Packaged pinned Firekylin source and built admin assets');
