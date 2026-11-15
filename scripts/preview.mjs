@@ -1,5 +1,6 @@
 // Local convenience only. Vercel serves dist/ directly and never runs this file.
 import themeProxy from '../api/theme.js';
+import oauthServices from '../api/oauth-services.js';
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -24,6 +25,10 @@ createServer(async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (new URL(req.url, 'http://localhost').pathname === '/api/theme') {
     await themeProxy(req, res);
+    return;
+  }
+  if (new URL(req.url, 'http://localhost').pathname === '/api/oauth-services') {
+    await oauthServices(req, res);
     return;
   }
   try {

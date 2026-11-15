@@ -4,7 +4,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 
 async function main() {
-    require('./theme-proxy.cjs')(process.env.PLAYGROUND_THEME_BRIDGE === '1');
+    require('./network-bridge.cjs')(process.env.PLAYGROUND_NETWORK_BRIDGE === '1');
     const locale = ['zh-CN', 'en-US'].includes(process.env.PLAYGROUND_LOCALE)
         ? process.env.PLAYGROUND_LOCALE : 'zh-CN';
     const port = Number(process.env.PLAYGROUND_PORT || 8360);

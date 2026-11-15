@@ -42,7 +42,7 @@ test('browser bridge transfers ZIP bytes, propagates errors and cancellation', a
     const fs = await import('node:fs/promises');
     const {tmpdir} = await import('node:os');
     const {join} = await import('node:path');
-    const {handleThemeDownload} = await import('../src/theme-download.mjs');
+    const {handleNetworkRequest} = await import('../src/network-bridge.mjs');
     const require = createRequire(import.meta.url);
     const root = await fs.mkdtemp(join(tmpdir(), 'theme-bridge-'));
     const original = globalThis.fetch;
@@ -60,9 +60,12 @@ test('browser bridge transfers ZIP bytes, propagates errors and cancellation', a
         return new Response('untouched');
     };
     try {
-        require('../runtime/theme-proxy.cjs')(true, {
-            directory: join(root, '.theme-downloads'),
-            emit: event => tasks.push(handleThemeDownload(event, container, async (input, options) => {
+        require('../runtime/network-bridge.cjs')(true, {
+            directory: join(root, '.network-responses'),
+            emit: event => tasks.push(handleNetworkRequest(event, container, async (input, options) => {
+                if (input === '/api/oauth-services') {
+                    return Response.json({services: [{name: 'github', title: 'GitHub'}]});
+                }
                 assert.equal(input, `/api/theme?url=${encodeURIComponent(url)}`);
                 assert.equal(options.credentials, 'same-origin');
                 assert.equal(options.headers, undefined);
@@ -77,8 +80,11 @@ test('browser bridge transfers ZIP bytes, propagates errors and cancellation', a
             }))
         });
         assert.deepEqual(new Uint8Array(await (await fetch(url)).arrayBuffer()), data);
+        assert.deepEqual(await (await fetch('https://oauth.lithub.cc')).json(), {
+            services: [{name: 'github', title: 'GitHub'}]
+        });
         mode = 'error';
-        await assert.rejects(fetch(url), /expected a ZIP archive/);
+        await assert.rejects(fetch(url), /expected application\/zip/);
         mode = 'cancel';
         const controller = new AbortController();
         const pending = fetch(new Request(url, {signal: controller.signal}));
@@ -86,10 +92,13 @@ test('browser bridge transfers ZIP bytes, propagates errors and cancellation', a
         await assert.rejects(pending, /abort/i);
         await Promise.all(tasks);
         assert.equal(cancelled, true);
-        assert.deepEqual(await fs.readdir(join(root, '.theme-downloads')), []);
+        assert.deepEqual(await fs.readdir(join(root, '.network-responses')), []);
         await fetch('https://registry.npmjs.org/example');
         await fetch(url, {method: 'POST'});
-        assert.equal(ordinary.length, 2);
+        await fetch('https://oauth.lithub.cc/github?code=test');
+        await fetch('https://oauth.lithub.cc/?url=https://example.com');
+        await fetch('https://oauth.lithub.cc/', {method: 'POST'});
+        assert.equal(ordinary.length, 5);
         assert.equal(ordinary[0][0], 'https://registry.npmjs.org/example');
     } finally {
         globalThis.fetch = original;
