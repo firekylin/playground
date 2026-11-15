@@ -54,7 +54,7 @@ delete pkg.devDependencies;
 delete pkg.scripts;
 delete pkg.packageManager;
 tree['package.json'].file.contents = JSON.stringify(pkg, null, 2);
-for (const name of ['start-playground.cjs', 'seed-site.cjs', 'db-tool.cjs']) {
+for (const name of ['start-playground.cjs', 'seed-site.cjs', 'db-tool.cjs', 'theme-proxy.cjs']) {
     tree[name] = {file: {contents: await readFile(path.join(runtimeRoot, name), 'utf8')}};
 }
 await writeFile(path.join(outputRoot, 'firekylin-files.json'), JSON.stringify(tree));

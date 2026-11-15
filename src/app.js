@@ -230,7 +230,7 @@ async function start(event) {
         await versionOutput;
         log('Node.js ' + nodeVersion.trim() + '\n');
         const process = await container.spawn('node', ['--max-old-space-size=512', 'start-playground.cjs'], {
-            env: {NODE_ENV: 'production', PLAYGROUND_LOCALE: language()}
+            env: {NODE_ENV: 'production', PLAYGROUND_LOCALE: language(), PLAYGROUND_ORIGIN: location.origin}
         });
         startupTimer = setTimeout(() => {
             log(t('启动超过 180 秒，请查看日志并重新运行。\n'));

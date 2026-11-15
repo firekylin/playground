@@ -1,4 +1,5 @@
 // Local convenience only. Vercel serves dist/ directly and never runs this file.
+import themeProxy from '../api/theme.js';
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -21,6 +22,10 @@ createServer(async (req, res) => {
   for (const header of config.headers[0].headers)
     res.setHeader(header.key, header.value);
   res.setHeader("Cache-Control", "no-store");
+  if (new URL(req.url, 'http://localhost').pathname === '/api/theme') {
+    await themeProxy(req, res);
+    return;
+  }
   try {
     const pathname = decodeURIComponent(
       new URL(req.url, "http://localhost").pathname,

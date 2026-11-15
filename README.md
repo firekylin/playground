@@ -1,6 +1,6 @@
 # Firekylin Playground
 
-在浏览器里运行临时 Firekylin 站点。Node.js 由 WebContainers 提供，数据库使用 PGlite；预览服务器仅分发静态文件，不在服务器运行用户的博客。
+在浏览器里运行临时 Firekylin 站点。Node.js 由 WebContainers 提供，数据库使用 PGlite；页面和运行资源使用静态托管，官方主题下载使用轻量代理；用户的博客仍运行在浏览器中。
 
 ## 开始使用
 
@@ -73,9 +73,11 @@ GitHub Actions 在提交和 PR 时执行上述流程。
 - Output Directory：`dist`。
 - Node.js：24.x（仅用于构建）。
 
-构建时获取 Firekylin `master` 最新代码，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，不需要 Functions、自建服务或服务器数据库。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
+构建时获取 Firekylin `master` 最新代码，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，博客本身不需要服务器数据库或常驻服务；`api/theme.js` 使用 Vercel Function 代理官方主题 ZIP 下载。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
 
-`npm run preview` 仅用于本地预览 `dist/`，不会部署或启动在线服务。Vercel 的构建 Node.js 版本不影响浏览器内 WebContainer 的 Node.js 版本。
+`npm run preview` 仅用于本地预览 `dist/`，同时提供本地主题下载代理。Vercel 的构建 Node.js 版本不影响浏览器内 WebContainer 的 Node.js 版本。
+
+主题安装包通过 `/api/theme?url=...` 下载，接口仅允许 `firekylin/themes` 的 GitHub Release ZIP，并限制跳转目标、大小和超时。运行时只改写这些下载请求，Firekylin 仍验证 SHA-512 完整性。
 
 ## 目录
 
@@ -83,7 +85,8 @@ GitHub Actions 在提交和 PR 时执行上述流程。
 src/                 Playground 界面和开发者工具
 public/              Logo 等静态素材
 runtime/             浏览器内的启动、固定示例初始化、数据库桥接
-scripts/             构建、打包、检查和本地静态预览
+scripts/             构建、打包、检查和本地预览
+api/                 Vercel 官方主题下载代理
 test/               界面、静态资源和真实服务集成检查
 dist/                完整静态部署产物（自动生成，不提交）
 vercel.json          Vercel 构建及响应头设置
