@@ -6,7 +6,7 @@
     "start": "npm run preview",
     "preview": "node scripts/preview.mjs",
     "build": "node scripts/build.mjs",
-    "test": "node --test test/ui.test.mjs",
+    "test": "node --test test/ui.test.mjs test/theme-proxy.test.mjs test/oauth-services.test.mjs",
     "test:static": "node --test test/static.test.mjs",
     "test:integration": "node --test test/integration.test.mjs",
     "check": "node scripts/check.mjs"

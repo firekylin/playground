@@ -4,6 +4,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 
 async function main() {
+    require('./network-bridge.cjs')(process.env.PLAYGROUND_NETWORK_BRIDGE === '1');
     const locale = ['zh-CN', 'en-US'].includes(process.env.PLAYGROUND_LOCALE)
         ? process.env.PLAYGROUND_LOCALE : 'zh-CN';
     const port = Number(process.env.PLAYGROUND_PORT || 8360);
@@ -73,6 +74,8 @@ async function main() {
         env: 'production'
     });
     new Loader(app.options).loadAll('worker');
+    // Browser WASM startup can exceed ThinkJS's server default of three seconds.
+    think.config('startServerTimeout', 60000);
     await think.beforeStartServer();
     const localeOptions = think.model('options');
     const localeRow = await localeOptions.where({ key: 'locale' }).find();

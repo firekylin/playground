@@ -1,0 +1,9 @@
+.cache
+node_modules
+dist
+.env*
+firekylin-files.json
+dependency-links.json
+snapshots.json
+snapshots
+.git
