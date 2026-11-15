@@ -37,29 +37,63 @@ test('rejects external redirects, oversized archives and upstream errors', async
     await assert.rejects(downloadTheme(url, async() => new Response('missing', {status: 404})), /404/);
 });
 
-test('runtime adapts only official downloads and keeps the abort signal', async () => {
+test('browser bridge transfers ZIP bytes, propagates errors and cancellation', async () => {
     const {createRequire} = await import('node:module');
+    const fs = await import('node:fs/promises');
+    const {tmpdir} = await import('node:os');
+    const {join} = await import('node:path');
+    const {handleThemeDownload} = await import('../src/theme-download.mjs');
     const require = createRequire(import.meta.url);
+    const root = await fs.mkdtemp(join(tmpdir(), 'theme-bridge-'));
     const original = globalThis.fetch;
-    const calls = [];
-    globalThis.fetch = async(...args) => {
-        calls.push(args);
-        return new Response('zip');
+    const ordinary = [];
+    const data = new Uint8Array([80, 75, 3, 4, 0, 255]);
+    const container = {fs: Object.fromEntries(['mkdir', 'writeFile', 'rm'].map(name => [
+        name, (file, ...args) => fs[name](join(root, file), ...args)
+    ]))};
+    container.fs.rename = (from, to) => fs.rename(join(root, from), join(root, to));
+    let mode = 'success';
+    let cancelled = false;
+    const tasks = [];
+    globalThis.fetch = async (...args) => {
+        ordinary.push(args);
+        return new Response('untouched');
     };
     try {
-        require('../runtime/theme-proxy.cjs')('https://playground.example');
-        const signal = new AbortController().signal;
-        await fetch(new URL(url), {signal, redirect: 'manual', headers: {'user-agent': 'test'}});
-        const target = new URL(calls[0][0]);
-        assert.equal(target.origin, 'https://playground.example');
-        assert.equal(target.pathname, '/api/theme');
-        assert.equal(target.searchParams.get('url'), url);
-        assert.equal(calls[0][1].signal, signal);
-        assert.equal(calls[0][1].headers, undefined);
+        require('../runtime/theme-proxy.cjs')(true, {
+            directory: join(root, '.theme-downloads'),
+            emit: event => tasks.push(handleThemeDownload(event, container, async (input, options) => {
+                assert.equal(input, `/api/theme?url=${encodeURIComponent(url)}`);
+                assert.equal(options.credentials, 'same-origin');
+                assert.equal(options.headers, undefined);
+                if (mode === 'error') return new Response('login', {headers: {'content-type': 'text/html'}});
+                if (mode === 'cancel') return new Promise((resolve, reject) => {
+                    options.signal.addEventListener('abort', () => {
+                        cancelled = true;
+                        reject(options.signal.reason);
+                    }, {once: true});
+                });
+                return new Response(data, {headers: {'content-type': 'application/zip'}});
+            }))
+        });
+        assert.deepEqual(new Uint8Array(await (await fetch(url)).arrayBuffer()), data);
+        mode = 'error';
+        await assert.rejects(fetch(url), /expected a ZIP archive/);
+        mode = 'cancel';
+        const controller = new AbortController();
+        const pending = fetch(new Request(url, {signal: controller.signal}));
+        setTimeout(() => controller.abort(), 100);
+        await assert.rejects(pending, /abort/i);
+        await Promise.all(tasks);
+        assert.equal(cancelled, true);
+        assert.deepEqual(await fs.readdir(join(root, '.theme-downloads')), []);
         await fetch('https://registry.npmjs.org/example');
-        assert.equal(calls[1][0], 'https://registry.npmjs.org/example');
+        await fetch(url, {method: 'POST'});
+        assert.equal(ordinary.length, 2);
+        assert.equal(ordinary[0][0], 'https://registry.npmjs.org/example');
     } finally {
         globalThis.fetch = original;
+        await fs.rm(root, {recursive: true, force: true});
     }
 });
 

@@ -73,7 +73,7 @@ GitHub Actions 在提交和 PR 时执行上述流程。
 - Output Directory：`dist`。
 - Node.js：24.x（仅用于构建）。
 
-构建时获取 Firekylin `master` 最新代码，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，博客本身不需要服务器数据库或常驻服务；`api/theme.js` 使用 Vercel Function 代理官方主题 ZIP 下载。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
+构建时获取 Firekylin `master` 最新代码，所有页面、SDK、数据库依赖和运行快照统一输出到 `dist/`。Vercel 直接托管这些静态文件，博客本身不需要服务器数据库或常驻服务；`api/theme.js` 使用 Vercel Function 代理官方主题 ZIP 下载。主题下载由 Playground 页面通过同源请求完成，再通过临时文件交给 WebContainer，避免跨域访问预览保护接口；浏览器登录凭据不会传入容器。此适配仅覆盖官方主题 ZIP，其他外部请求仍遵循浏览器网络限制。WebContainer 必需的跨源隔离响应头已配置在 `vercel.json`。
 
 `npm run preview` 仅用于本地预览 `dist/`，同时提供本地主题下载代理。Vercel 的构建 Node.js 版本不影响浏览器内 WebContainer 的 Node.js 版本。
 

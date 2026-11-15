@@ -1,6 +1,7 @@
 import { t, language, translatePage } from './i18n.mjs';
 // Native browser modules require explicit extensions.
 import { WebContainer } from './sdk/index.js'; // eslint-disable-line import/extensions
+import { handleThemeDownload } from './theme-download.mjs';
 import { setupDevtools } from './devtools.mjs';
 
 const $ = (selector) => document.querySelector(selector);
@@ -41,6 +42,10 @@ function message(text) {
     }
 }
 function event(value) {
+    if (value.phase === 'theme-download' || value.phase === 'theme-download-cancel') {
+        handleThemeDownload(value, container).catch(error => log(`Theme download: ${error.message}\n`));
+        return;
+    }
     if (value.phase === 'initializing') status.textContent = t('正在初始化 Firekylin 和数据库…');
     if (value.phase === 'seeding') {
         status.textContent = t('正在初始化站点…');
@@ -230,7 +235,7 @@ async function start(event) {
         await versionOutput;
         log('Node.js ' + nodeVersion.trim() + '\n');
         const process = await container.spawn('node', ['--max-old-space-size=512', 'start-playground.cjs'], {
-            env: {NODE_ENV: 'production', PLAYGROUND_LOCALE: language(), PLAYGROUND_ORIGIN: location.origin}
+            env: {NODE_ENV: 'production', PLAYGROUND_LOCALE: language(), PLAYGROUND_THEME_BRIDGE: '1'}
         });
         startupTimer = setTimeout(() => {
             log(t('启动超过 180 秒，请查看日志并重新运行。\n'));
