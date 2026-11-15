@@ -62,3 +62,50 @@ test('runtime adapts only official downloads and keeps the abort signal', async 
         globalThis.fetch = original;
     }
 });
+
+test('client disconnect cancels upstream and completes the proxy handler', async () => {
+    const {createServer, get} = await import('node:http');
+    const {once} = await import('node:events');
+    const {default: handler} = await import('../api/theme.js');
+    const original = globalThis.fetch;
+    let cancelled = false;
+    let complete;
+    const completed = new Promise(resolve => { complete = resolve; });
+    globalThis.fetch = async() => new Response(new ReadableStream({
+        pull(controller) {
+            controller.enqueue(new Uint8Array(64 * 1024));
+        },
+        cancel() {
+            cancelled = true;
+        }
+    }));
+    const server = createServer((req, res) => {
+        handler(req, res).finally(complete);
+    });
+    try {
+        server.listen(0, '127.0.0.1');
+        await once(server, 'listening');
+        await new Promise((resolve, reject) => {
+            const request = get(`http://127.0.0.1:${server.address().port}/api/theme?url=${encodeURIComponent(url)}`, response => {
+                response.once('data', () => {
+                    response.destroy();
+                    resolve();
+                });
+            });
+            request.on('error', reject);
+        });
+        let timer;
+        try {
+            await Promise.race([completed, new Promise((resolve, reject) => {
+                timer = setTimeout(() => reject(new Error('Proxy did not finish after disconnect')), 2000);
+            })]);
+        } finally {
+            clearTimeout(timer);
+        }
+        assert.equal(cancelled, true);
+    } finally {
+        globalThis.fetch = original;
+        server.closeAllConnections();
+        await new Promise(resolve => server.close(resolve));
+    }
+});

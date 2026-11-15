@@ -1,4 +1,5 @@
-import { once } from 'node:events';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 export const maxDuration = 60;
 const maxBytes = 20 * 1024 * 1024;
@@ -66,14 +67,18 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
     let bytes = 0;
-    // Stream to avoid the buffered Vercel response size limit.
-    for await (const chunk of response.body) {
-      bytes += chunk.length;
-      if (bytes > maxBytes) throw new Error('Theme archive exceeds 20 MiB');
-      if (res.destroyed) break;
-      if (!res.write(chunk)) await once(res, 'drain');
-    }
-    res.end();
+    // Pipeline propagates disconnects and backpressure to the upstream reader.
+    const limiter = new Transform({
+      transform(chunk, encoding, callback) {
+        bytes += chunk.length;
+        if (bytes > maxBytes) {
+          callback(new Error('Theme archive exceeds 20 MiB'));
+          return;
+        }
+        callback(null, chunk);
+      }
+    });
+    await pipeline(Readable.fromWeb(response.body), limiter, res);
   } catch {
     if (res.headersSent) res.destroy();
     else {
